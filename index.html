@@ -290,8 +290,9 @@ function register(){
   if(data.session){await loadUser();toast("اتفتح الحساب");location.hash="#/library"}else{toast("اتبعتلك إيميل تأكيد، افتحه وبعدين سجّل دخول")}
  };
 }
-function invites(){
+async function invites(){
  if(!S.user){app.innerHTML=`<div class="form card"><h2>الدعوات</h2><p>سجّل دخول الأول.</p><a class="btn" href="#/login">دخول</a></div>`;return}
+ if(isAdmin()&&await needMfa()){return mfaPrompt(async()=>{invites()})}
  const adm=isAdmin();
  app.innerHTML=`<div class="form card"><h2>ادعُ زميل</h2>
  <p style="font-size:13px;color:var(--mut)">التسجيل بدعوة بس. اكتب إيميل زميلك، وهو يسجّل بنفس الإيميل ويأكده. كل عضو له ١٠ دعوات${adm?" وأنت مشرف بدون حد":""}. الدعوة مش بتبعت رسالة، قوله بنفسك يسجّل.</p>
