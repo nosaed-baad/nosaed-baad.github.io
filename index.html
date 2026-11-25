@@ -192,7 +192,7 @@ async function loadItems(){
 }
 function chrome(){
  $("#who").textContent=S.user?"أهلا "+S.user.name+(isAdmin()?" (مشرف)":""):"";
- $("#authBtn").innerHTML=S.user?'<button class="btn o s" onclick="logout()">خروج</button>':'<a class="btn o s" href="#/register">حساب جديد</a> <a class="btn s" href="#/login">دخول</a>';
+ $("#authBtn").innerHTML=S.user?'<a class="btn o s" href="#/invites">دعوات</a> <button class="btn o s" onclick="logout()">خروج</button>':'<a class="btn o s" href="#/register">حساب جديد</a> <a class="btn s" href="#/login">دخول</a>';
  $("#adminLink").style.display=isAdmin()?"":"none";
  const r=location.hash.split("/")[1]||"";document.querySelectorAll("[data-r]").forEach(a=>a.classList.toggle("act",a.dataset.r==r));
 }
@@ -279,16 +279,32 @@ function register(){
  <label>الاسم الأول *</label><input id="fn"><label>اسم العيلة / الاسم الثاني *</label><input id="ln">
  <label>رقم الموبايل (اختياري، للتواصل بس ومش بيتأكد)</label><input id="ph" inputmode="tel" placeholder="01xxxxxxxxx"><label>الإيميل *</label><input id="em" type="email">
  <label>كلمة السر * (٨ حروف على الأقل)</label><input id="pw" type="password" autocomplete="new-password"><br>
- <p style="font-size:13px;color:var(--mut)">التسجيل للطلاب بس. صلاحية المشرف مش خيار في التسجيل ولا بتتحدد من المتصفح.</p>
+ <p style="font-size:13px;color:var(--mut)">التسجيل بدعوة بس: لازم الإيميل يكون واحد من اللي اتبعتله دعوة من عضو في الموقع. هتوصلك رسالة تأكيد على الإيميل، افتح الرابط وبعدين سجّل دخول. صلاحية المشرف مش خيار في التسجيل ولا بتتحدد من المتصفح.</p>
  <button class="btn" id="rg">إنشاء الحساب</button></div>`;
  $("#rg").onclick=async()=>{const a=$("#fn").value.trim(),b=$("#ln").value.trim(),AR=/^[\u0621-\u063A\u0641-\u064A\u064B-\u0652]+$/;
   if(!a||!b)return toast("الاسم لازم يكون من جزئين");if(!AR.test(a)||!AR.test(b))return toast("اكتب الاسم بالحروف العربية بس");
   if($("#pw").value.length<8)return toast("كلمة السر قصيرة");
   const r=$("#rg");r.disabled=true;
   const {data,error}=await sb.auth.signUp({email:$("#em").value.trim(),password:$("#pw").value,options:{data:{name:a+" "+b,phone:$("#ph").value.trim()}}});
-  r.disabled=false;if(error)return toast(/not allowed|disabled/i.test(error.message)?"التسجيل الذاتي مقفول حاليًا. الحسابات بتتعمل بدعوة من المشرف":"فشل التسجيل: "+error.message);
+  r.disabled=false;if(error)return toast(/not_invited/i.test(error.message)?"الإيميل ده مالوش دعوة. اطلب من عضو في الموقع يبعتلك دعوة على نفس الإيميل":/not allowed|disabled/i.test(error.message)?"التسجيل مقفول حاليًا":/rate|limit/i.test(error.message)?"محاولات كتير، جرّب بعد شوية":"فشل التسجيل: "+error.message);
   if(data.session){await loadUser();toast("اتفتح الحساب");location.hash="#/library"}else{toast("اتبعتلك إيميل تأكيد، افتحه وبعدين سجّل دخول")}
  };
+}
+function invites(){
+ if(!S.user){app.innerHTML=`<div class="form card"><h2>الدعوات</h2><p>سجّل دخول الأول.</p><a class="btn" href="#/login">دخول</a></div>`;return}
+ const adm=isAdmin();
+ app.innerHTML=`<div class="form card"><h2>ادعُ زميل</h2>
+ <p style="font-size:13px;color:var(--mut)">التسجيل بدعوة بس. اكتب إيميل زميلك، وهو يسجّل بنفس الإيميل ويأكده. كل عضو له ١٠ دعوات${adm?" وأنت مشرف بدون حد":""}. الدعوة مش بتبعت رسالة، قوله بنفسك يسجّل.</p>
+ <div id="iq" class="note"></div><label>إيميل الزميل</label><input id="ie" type="email" dir="ltr"><br><button class="btn" id="ib">أضف الدعوة</button><div id="il"></div></div>`;
+ const ERR={invite_limit:"وصلت للحد الأقصى من الدعوات",already_invited:"الإيميل ده اتدعى قبل كده",bad_email:"الإيميل مش صحيح",not_logged_in:"سجّل دخول الأول"};
+ const draw=async()=>{const {data,error}=await sb.from("invites").select("email,created_at,used_at").order("created_at",{ascending:false});const L=data||[];
+  $("#iq").textContent=adm?"دعوات المشرف: بدون حد":"المتبقي: "+Math.max(0,10-L.length)+" من ١٠";
+  $("#il").innerHTML=L.map(i=>`<div class="file"><div class="m" dir="ltr">${esc(i.email)} ${i.used_at?"- سجّل ✓":"- مستني"}</div></div>`).join("")};
+ $("#ib").onclick=async()=>{const e=$("#ie").value.trim().toLowerCase();if(!e)return toast("اكتب الإيميل");const b=$("#ib");b.disabled=true;
+  const {error}=await sb.rpc("create_invite",{p_email:e});b.disabled=false;
+  if(error){const k=Object.keys(ERR).find(k=>(error.message||"").includes(k));return toast(k?ERR[k]:"فشلت الدعوة")}
+  $("#ie").value="";toast("اتسجلت الدعوة");draw()};
+ draw();
 }
 function support(){
  if(!S.user){app.innerHTML=`<div class="form card"><h2>الدعم</h2><p>سجّل دخول عشان تبعت رسالة.</p><a class="btn" href="#/login">دخول</a></div>`;return}
@@ -343,7 +359,7 @@ async function route(keep){
  const p=location.hash.replace(/^#\/?/,"").split("/").filter(x=>x!=="");const r=p[0]||"";
  if(!sb){setup();chrome();return}
  if(r=="library")library(p.slice(1));
- else if(r=="upload")upload();else if(r=="login")login();else if(r=="register")register();else if(r=="support")support();else if(r=="admin")await admin();else home();
+ else if(r=="upload")upload();else if(r=="login")login();else if(r=="register")register();else if(r=="support")support();else if(r=="invites")invites();else if(r=="admin")await admin();else home();
  chrome();if(keep){const e=$("#sq");if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length)}}else{app.classList.remove("enter");void app.offsetWidth;app.classList.add("enter")}
 }
 addEventListener("hashchange",()=>{q="";tf="";route();scrollTo(0,0)});
