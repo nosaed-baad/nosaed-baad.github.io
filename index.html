@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="author" content="أحمد عاطف زكي">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<title>نساعد بعض | مكتبة تعليمية مشتركة</title>
 <meta name="description" content="نساعد بعض: مكتبة تعليمية مشتركة للطلاب المصريين لرفع وتحميل الملخصات والمراجعات والامتحانات، مع مراجعة المشرف قبل النشر.">
 <meta name="robots" content="index,follow">
 <meta property="og:title" content="نساعد بعض | مكتبة تعليمية مشتركة"><meta property="og:type" content="website"><meta property="og:locale" content="ar_EG">
-<title>نساعد بعض | مكتبة تعليمية مشتركة</title>
 <style>
 :root{--g:#0f766e;--g2:#14b8a6;--bg:#f4f7f6;--ink:#0b1f1d;--mut:#5b6e6b;--card:#fff;--br:#dbe5e3}
 *{box-sizing:border-box}body{margin:0;font-family:Tahoma,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.7}
@@ -113,6 +113,23 @@ const BASE={
  "كلية الهندسة":["رياضة هندسية","فيزياء هندسية","ميكانيكا","دوائر كهربية","رسم هندسي","برمجة","مادة أخرى"],
  "كلية الحاسبات والمعلومات":["برمجة","هياكل بيانات","قواعد بيانات","نظم تشغيل","شبكات","ذكاء اصطناعي","مادة أخرى"]
 };
+const AZP123=["القرآن الكريم والتجويد","التربية الإسلامية","اللغة العربية والخط","اللغة الإنجليزية","الرياضيات","التربية البدنية والصحية","أنشطة التوكاتسو"];
+const AZP456=["القرآن الكريم والتجويد","التربية الإسلامية","اللغة العربية والخط","اللغة الإنجليزية","الرياضيات","العلوم","الدراسات الاجتماعية","التربية البدنية والصحية","التربية الفنية","المهارات المهنية","تكنولوجيا المعلومات"];
+const AZPREPC=["القرآن الكريم والتجويد","أصول الدين","الفقه","النحو","المطالعة والنصوص","الإنشاء","الإملاء","الخط","الدراسات الاجتماعية","العلوم","الرياضيات","اللغة الإنجليزية","الحاسب الآلي","التربية الفنية","الاقتصاد المنزلي","التربية الرياضية"];
+const AZPREP={"الصف الأول":AZPREPC,"الصف الثاني":[...AZPREPC.slice(0,4),"الصرف",...AZPREPC.slice(4)],"الصف الثالث":[...AZPREPC.slice(0,3),"الثقافة الإسلامية","النحو","الصرف",...AZPREPC.slice(4)]};
+const AZF="الفقه (حنفي أو شافعي أو مالكي)";
+const AZURE={
+ "المرحلة الابتدائية":{"الصف الأول":AZP123,"الصف الثاني":AZP123,"الصف الثالث":AZP123,"الصف الرابع":AZP456,"الصف الخامس":AZP456,"الصف السادس":AZP456},
+ "المرحلة الإعدادية":AZPREP,
+ "المرحلة الثانوية":{
+  "الصف الأول الثانوي":["القرآن الكريم","التوحيد والمنطق القديم","التفسير وعلوم القرآن","الحديث وعلومه","الفقه","الثقافة الإسلامية","النحو","الصرف","البلاغة","الأدب وفنون الكتابة","العلوم المتكاملة","التاريخ المصري","الرياضيات","الفلسفة والمنطق","اللغة الأجنبية الأولى","اللغة الأجنبية الثانية (خارج المجموع)","البرمجة والذكاء الاصطناعي (خارج المجموع)"],
+  "الصف الثاني الثانوي":["تفسير النسفي","التوحيد","الحديث",AZF,"المنطق","الصرف","النحو (شرح ابن عقيل)","البلاغة","تاريخ الأدب","المطالعة"],
+  "الصف الثالث الثانوي":["تفسير النسفي","التوحيد (جوهرة التوحيد)","الحديث (مختصر الزبيدي)",AZF,"الصرف","النحو (شرح ابن عقيل)","البلاغة العربية","تاريخ الأدب ونصوصه","المطالعة والإنشاء"]}};
+{const o={};for(const k of Object.keys(BASE)){o[k]=BASE[k];if(k=="ثانوية عامة")o["التعليم الأزهري"]=AZURE}for(const k of Object.keys(BASE))delete BASE[k];Object.assign(BASE,o)}
+const AZ_NOTE="قسم مستقل للتعليم الأزهري. المواد مرتبة حسب خطة الدراسة وكتب قطاع المعاهد الأزهرية ٢٠٢٦/٢٧، وتقدر تعدلها من لوحة المشرف.";
+const AZ_SEC="الصف الأول الثانوي بنظام البكالوريا الأزهرية الجديد (مشترك لكل الطلاب من ٢٠٢٦/٢٧). الصفان الثاني والثالث لسه على النظام القديم (علمي وأدبي): المواد الشرعية والعربية حسب كتب الأزهر الرسمية، والمواد الثقافية لكل قسم لسه ما اتأكدتش منها وتقدر تضيفها من لوحة المشرف.";
+const AZ_PRIM="";
+const AZ_PREP="";
 const isArr=Array.isArray;
 let TREE=JSON.parse(JSON.stringify(BASE)),TAX=[];
 function buildTree(){
@@ -156,13 +173,16 @@ function mfaPrompt(done){
 }
 async function enrollMfa(){
  const {data:f}=await sb.auth.mfa.listFactors();
- for(const x of (f&&f.all||[]))if(x.status!="verified")await sb.auth.mfa.unenroll({factorId:x.id});
+ const pend=(f&&f.all||[]).filter(x=>x.status!="verified");
+ if(pend.length&&!confirm("فيه تفعيل بدأ قبل كده. لو كمّلت هيتلغي الكود القديم، ولازم تمسح الجديد وتحذف القديم من التطبيق. تكمل؟"))return;
+ const eb=$("#enrollBtn");if(eb)eb.disabled=true;
+ for(const x of pend)await sb.auth.mfa.unenroll({factorId:x.id});
  const {data,error}=await sb.auth.mfa.enroll({factorType:"totp",friendlyName:"Nosaed admin"});
  if(error)return toast("تعذر البدء: "+error.message);
  $("#mfaBox").innerHTML=`<div class="note">١) افتح تطبيق مصادقة (Google Authenticator أو Microsoft Authenticator). ٢) امسح الكود أو اكتب المفتاح يدويًا. ٣) اكتب الرمز اللي بيظهر.</div><img src="${data.totp.qr_code}" alt="QR" style="width:180px;height:180px;background:#fff"><div dir="ltr" style="font-family:monospace;word-break:break-all;margin:8px 0">${esc(data.totp.secret)}</div><input id="mc" inputmode="numeric" maxlength="6" placeholder="000000"><br><button class="btn" id="mv" style="margin-top:8px">تفعيل</button>`;
  $("#mv").onclick=async()=>{const code=$("#mc").value.trim();if(!/^\d{6}$/.test(code))return toast("اكتب ٦ أرقام");
   const {error:e2}=await sb.auth.mfa.challengeAndVerify({factorId:data.id,code});
-  if(e2)return toast("الرمز غلط");toast("اتفعّل التحقق بخطوتين");await admin()};
+  if(e2)return toast("الرمز غلط: "+(e2.message||""));toast("اتفعّل التحقق بخطوتين");await admin()};
 }
 async function loadItems(){
  if(!sb)return;const {data,error}=await sb.from("items").select("*").order("created_at",{ascending:false});
@@ -198,7 +218,7 @@ function library(p){
  else if(!isArr(node)){
   h+=`<h2>${path.length?path[path.length-1]+": اختار":"اختار المرحلة أو الكلية"}</h2><div class="grid">${Object.keys(node).map(k=>`<a class="card" href="${P(...path,k)}"><h3>${k}</h3><span class="tag">${cnt([...path,k])} ملف</span></a>`).join("")}</div>`}
  else{h+=`<h2>التصنيفات (مواد وأقسام مقترحة)</h2><div class="grid">${node.map(x=>`<a class="card" href="${P(...path,x)}"><h3>${x}</h3><span class="tag">${pubItems().filter(i=>same(i.path,path)&&i.subject==x).length} ملف</span></a>`).join("")}</div>`}
- h+=`<div class="note">${SRC_NOTE}</div>`;if(path[0]=="إعدادي"&&path[1]&&path[1]!="الصف الأول")h+=`<div class="note">${UNV}</div>`;
+ h+=`<div class="note">${path[0]=="التعليم الأزهري"?AZ_NOTE+" "+(path[1]=="المرحلة الابتدائية"?AZ_PRIM:path[1]=="المرحلة الإعدادية"?AZ_PREP:path[1]=="المرحلة الثانوية"?AZ_SEC:""):SRC_NOTE}</div>`;if(path[0]=="إعدادي"&&path[1]&&path[1]!="الصف الأول")h+=`<div class="note">${UNV}</div>`;
  app.innerHTML=h;
 }
 let q="",tf="";
@@ -283,7 +303,7 @@ async function admin(){
  const {data:tk}=await sb.from("tickets").select("*").order("created_at",{ascending:false}).limit(20);
  const pend=S.items.filter(i=>!ok(i)),pub=S.items.filter(ok);
  const {data:fa}=await sb.auth.mfa.listFactors();const hasMfa=!!(fa&&fa.totp&&fa.totp.length);
- app.innerHTML=`<h2>لوحة الإدارة</h2>${hasMfa?'<div class="note">التحقق بخطوتين: شغّال ✓</div>':'<div class="card" style="border-color:#e0b64a"><b>حساب المشرف لسه بكلمة سر بس.</b> فعّل التحقق بخطوتين عشان الحساب يتحمي.<div id="mfaBox"><br><button class="btn s" onclick="enrollMfa()">تفعيل التحقق بخطوتين</button></div></div>'}<h3>طلبات المراجعة (${pend.length})</h3>
+ app.innerHTML=`<h2>لوحة الإدارة</h2>${hasMfa?'<div class="note">التحقق بخطوتين: شغّال ✓</div>':'<div class="card" style="border-color:#e0b64a"><b>حساب المشرف لسه بكلمة سر بس.</b> فعّل التحقق بخطوتين عشان الحساب يتحمي.<div id="mfaBox"><br><button class="btn s" id="enrollBtn" onclick="enrollMfa()">تفعيل التحقق بخطوتين</button></div></div>'}<h3>طلبات المراجعة (${pend.length})</h3>
  ${pend.length?pend.map(i=>`<div class="file"><div class="ic">${ICON[i.type]}</div><div class="m"><b>${esc(i.title)}</b><br><small>${pl(i)} • ${esc(i.subject)} • من ${esc(i.uploader_name)}</small></div>${i.file_path?`<button class="btn o s" onclick="dl('${esc(i.file_path)}')">معاينة الملف</button>`:""}<button class="btn s" onclick="act(${i.id},1)">موافقة</button><button class="btn r s" onclick="del(${i.id},this)">رفض</button></div>`).join(""):'<div class="card">مفيش طلبات.</div>'}
  <h3>الملفات المنشورة (${pub.length})</h3>${pub.map(i=>`<div class="file"><div class="ic">${ICON[i.type]}</div><div class="m"><b>${esc(i.title)}</b><br><small>${pl(i)} • ${esc(i.subject)}</small></div><button class="btn r s" onclick="del(${i.id},this)">حذف</button></div>`).join("")}
  <h3>إدارة الأقسام والمواد</h3><div class="form card" style="max-width:none"><div class="note">أضف كلية أو قسم أو مادة ناقصة. القايمة الأساسية ثابتة، وإضافاتك بتظهر للكل فورًا. الإضافة والحذف للمشرف بس.</div><div id="tx"></div><label>الاسم الجديد</label><input id="txn" maxlength="100"><br><button class="btn" id="txa">إضافة</button></div>
