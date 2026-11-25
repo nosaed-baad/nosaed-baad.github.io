@@ -149,7 +149,7 @@ function buildTree(){
 }
 const SRC_NOTE="تصنيفات مقترحة وقابلة للتعديل، مش منهج رسمي كامل. المصادر مختلفة في السنة: الصف الأول الثانوي ٢٠٢٥/٢٦ (قرار الوزارة ٢٣٤/٢٠٢٥)، وتاني بكالوريا وتالت ثانوي عام من أخبار ٢٠٢٦/٢٧، وتاني ثانوي عام من خبر صحفي واحد غير مؤكد. كلها نقل صحفي مش نص القرار. الابتدائي ٢٠٢٥/٢٦ وأولى إعدادي ٢٠٢٤/٢٥، وتاني وتالت إعدادي افتراض غير متحقق منه. (خارج المجموع) يعني مادة نجاح ورسوب. أحياء وجيولوجيا وتفاضل وتكامل وميكانيكا تنظيم للمصادر مش بالضرورة مواد رسمية. مواد الكليات أمثلة بتختلف من جامعة لجامعة. لو ناقص حاجة، ابعت من صفحة الدعم.";
 const UNV="تنبيه: قايمة الإعدادي للصف ده افتراض غير متحقق منه، المتحقق منه (٢٠٢٤/٢٥) للصف الأول الإعدادي بس.";
-const TYPES=["ملخص","شرح","كتاب"],ICON={"ملخص":"📝","شرح":"🎥","كتاب":"📘"};
+const TYPES=["ملخص","شرح","كتاب"],ICON={"ملخص":"📝","شرح":"🎥","كتاب":"📘"},PL={"ملخص":"ملخصات","شرح":"شروحات","كتاب":"كتب"};
 
 const $=s=>document.querySelector(s),app=$("#app");
 const toast=t=>{const e=$("#toast");e.textContent=t;e.style.display="block";clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display="none",3200)};
@@ -218,9 +218,9 @@ function home(){
 function library(p){
  p=p.map(decodeURIComponent);let node=TREE,path=[],sub=null;
  for(const seg of p){ if(isArr(node)){ if(node.includes(seg))sub=seg; break } if(node[seg]){node=node[seg];path.push(seg)} else break }
- const crumb=['<a href="#/library">المكتبة</a>'];path.forEach((x,i)=>crumb.push(`<a href="${P(...path.slice(0,i+1))}">${x}</a>`));if(sub)crumb.push(sub);
+ const ty=sub&&TYPES.includes(p[path.length+1])?p[path.length+1]:null;const crumb=['<a href="#/library">المكتبة</a>'];path.forEach((x,i)=>crumb.push(`<a href="${P(...path.slice(0,i+1))}">${x}</a>`));if(sub)crumb.push(ty?`<a href="${P(...path,sub)}">${sub}</a>`:sub);if(ty)crumb.push(PL[ty]);
  let h=`<div class="crumb">${crumb.join(" ‹ ")}</div>`;
- if(sub){h+=files(pubItems().filter(i=>same(i.path,path)&&i.subject==sub),`<h2>${sub}</h2>`)}
+ if(sub){const all=pubItems().filter(i=>same(i.path,path)&&i.subject==sub);if(ty)h+=files(all.filter(i=>i.type==ty),`<h2>${sub}: ${PL[ty]}</h2>`,1);else h+=`<h2>${sub}</h2><div class="note">اختار القسم اللي عايزه جوه المادة.</div><div class="grid">${TYPES.map(t=>`<a class="card" href="${P(...path,sub,t)}"><h3>${ICON[t]} ${PL[t]}</h3><span class="tag">${all.filter(i=>i.type==t).length} ملف</span></a>`).join("")}</div>`}
  else if(!isArr(node)){
   h+=`<h2>${path.length?path[path.length-1]+": اختار":"اختار المرحلة أو الكلية"}</h2><div class="grid">${Object.keys(node).map(k=>`<a class="card" href="${P(...path,k)}"><h3>${k}</h3><span class="tag">${cnt([...path,k])} ملف</span></a>`).join("")}</div>`}
  else{h+=`<h2>التصنيفات (مواد وأقسام مقترحة)</h2><div class="grid">${node.map(x=>`<a class="card" href="${P(...path,x)}"><h3>${x}</h3><span class="tag">${pubItems().filter(i=>same(i.path,path)&&i.subject==x).length} ملف</span></a>`).join("")}</div>`}
@@ -228,9 +228,9 @@ function library(p){
  app.innerHTML=h;
 }
 let q="",tf="";
-function files(list,head){
+function files(list,head,nc){
  const f=list.filter(i=>(!tf||i.type==tf)&&(!q||(i.title+i.subject).includes(q)));
- return `${head}<div class="row"><input id="sq" placeholder="ابحث عن ملف..." value="${esc(q)}" oninput="q=this.value;rerender(true)"><div class="chips" style="flex:2"><button class="${!tf?"on":""}" onclick="tf='';rerender()">الكل</button>${TYPES.map(t=>`<button class="${tf==t?"on":""}" onclick="tf='${t}';rerender()">${t}</button>`).join("")}</div></div>
+ return `${head}<div class="row"><input id="sq" placeholder="ابحث عن ملف..." value="${esc(q)}" oninput="q=this.value;rerender(true)"><div class="chips" style="flex:2${nc?";display:none":""}"><button class="${!tf?"on":""}" onclick="tf='';rerender()">الكل</button>${TYPES.map(t=>`<button class="${tf==t?"on":""}" onclick="tf='${t}';rerender()">${t}</button>`).join("")}</div></div>
  ${f.length?f.map(i=>`<div class="file"><div class="ic">${ICON[i.type]}</div><div class="m"><b>${esc(i.title)}</b><br><small>${i.type} • ${pl(i)} • ${esc(i.subject)} • رفعه ${esc(i.uploader_name)}</small></div>${i.file_path?`<button class="btn o s" onclick="dl('${esc(i.file_path)}')">تحميل</button>`:""}</div>`).join(""):'<div class="card">مفيش ملفات هنا لسه. كن أول واحد يرفع!</div>'}`;
 }
 async function dl(path){
@@ -242,7 +242,7 @@ function rerender(keep){route(keep)}
 function upload(){
  if(!S.user){app.innerHTML=`<div class="form card"><h2>لازم تسجل دخول الأول</h2><p>الرفع للأعضاء بس، وكل ملف بيتراجع قبل ما يظهر للناس.</p><a class="btn" href="#/login">دخول</a></div>`;return}
  app.innerHTML=`<div class="form card"><h2>ارفع ملف</h2><div class="note">الملف بيروح لقايمة مراجعة المشرف، ومش بيظهر للناس إلا بعد الموافقة. الحد الأقصى ١٠ ميجا، PDF أو صورة أو Word أو PowerPoint.</div>
- <label>العنوان</label><input id="t" maxlength="200"><div id="lv"></div><label>النوع</label><select id="ty">${TYPES.map(s=>`<option>${s}</option>`)}</select>
+ <label>العنوان</label><input id="t" maxlength="200"><div id="lv"></div><label>القسم داخل المادة</label><select id="ty">${TYPES.map(s=>`<option>${s}</option>`)}</select>
  <label>الملف</label><input type="file" id="fl" accept=".pdf,.png,.jpg,.jpeg,.docx,.pptx"><br><button class="btn" id="go">إرسال للمراجعة</button></div>`;
  let sel=[];const draw=()=>{let node=TREE,h="",i=0;
   const lbl=["المرحلة أو الكلية","الصف / الفرقة","الشعبة"];
