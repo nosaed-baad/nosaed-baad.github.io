@@ -57,6 +57,7 @@ footer{text-align:center;color:var(--mut);padding:24px;font-size:14px}
 @media(max-width:600px){.hero h1{font-size:26px}.nav{gap:6px}}
 .sw{display:flex;gap:8px;margin:6px 0}.sw button{flex:1;background:var(--card);color:var(--ink);border:1px solid var(--br);border-radius:10px;padding:9px;font:inherit;cursor:pointer}.sw button.on{background:var(--g);color:#fff;border-color:var(--g)}
 </style>
+<style>.rdot{display:inline-block;width:9px;height:9px;background:#e53935;border-radius:50%;margin-inline-start:5px;vertical-align:middle}.bell{position:relative;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border:1px solid var(--bd,#ccc);border-radius:50%;background:none;cursor:pointer;font-size:17px;vertical-align:middle}.bell .bdg{position:absolute;top:-3px;inset-inline-end:-3px;min-width:17px;height:17px;line-height:17px;border-radius:9px;background:#e53935;color:#fff;font-size:11px;text-align:center}.ann{border-inline-start:4px solid #e53935}</style>
 </head>
 <body>
 <div class="by">تم إعداده بواسطة الطالب <span>أحمد عاطف زكي</span></div>
@@ -158,12 +159,31 @@ const cfgOk=window.NOSAED_CONFIG&&NOSAED_CONFIG.url&&NOSAED_CONFIG.anonKey&&wind
 const sb=cfgOk?supabase.createClient(NOSAED_CONFIG.url,NOSAED_CONFIG.anonKey):null;
 let S={user:null,items:[],tickets:[]};
 const isAdmin=()=>S.user&&S.user.role=="admin";
+S.anns=[];S.pendN=0;
+const lastSeen=()=>{try{return +localStorage.getItem("nb_ann_seen_"+(S.user&&S.user.id))||0}catch(e){return 0}};
+const unreadN=()=>S.anns.filter(a=>a.id>lastSeen()).length;
+async function loadNotices(){
+ S.anns=[];S.pendN=0;if(!sb||!S.user){return}
+ try{const {data,error}=await sb.from("announcements").select("id,body,created_at").order("id",{ascending:false}).limit(20);if(!error&&data)S.anns=data}catch(e){}
+ if(isAdmin()){try{const {count}=await sb.from("items").select("id",{count:"exact",head:true}).eq("status","pending").not("file_path","is",null);S.pendN=count||0}catch(e){}}
+}
+function bellOpen(){
+ if(!S.user)return;const mx=S.anns.reduce((m,a)=>Math.max(m,a.id),0);
+ app.innerHTML=`<h2>الرسائل</h2>${S.anns.length?S.anns.map(a=>`<div class="card ann"><div>${esc(a.body).replace(/\n/g,"<br>")}</div><small>${new Date(a.created_at).toLocaleString("ar-EG")}</small></div>`).join(""):'<div class="card">مفيش رسائل.</div>'}`;
+ try{localStorage.setItem("nb_ann_seen_"+S.user.id,String(mx))}catch(e){}chrome();
+}
+async function sendAnn(){
+ const b=$("#annb"),t=b.value.trim();if(!t)return toast("اكتب الرسالة الأول");
+ if(!confirm("هتتبعت الرسالة دي لكل المستخدمين. تكمل؟"))return;
+ const {error}=await sb.from("announcements").insert({body:t});if(error)return toast("مش مسموح أو الجدول مش جاهز");
+ b.value="";toast("اتبعتت لكل المستخدمين");await loadNotices();chrome();
+}
 const ok=i=>i.status=="approved";
 async function loadUser(){
  if(!sb)return;const {data:{session}}=await sb.auth.getSession();
  if(!session){S.user=null;return}
  const {data}=await sb.from("profiles").select("name,role").eq("id",session.user.id).single();
- S.user=data?{id:session.user.id,name:data.name||session.user.email,raw:data.name||"",role:data.role}:null;
+ S.user=data?{id:session.user.id,name:data.name||session.user.email,raw:data.name||"",role:data.role}:null;await loadNotices();
 }
 async function loadTax(){
  if(!sb)return;const {data,error}=await sb.from("taxonomy").select("*").order("id");
@@ -196,8 +216,10 @@ async function loadItems(){
 }
 function chrome(){
  $("#who").textContent=S.user?"أهلا "+S.user.name+(isAdmin()?" (مشرف)":""):"";
- $("#authBtn").innerHTML=S.user?'<a class="btn o s" href="#/settings">إعدادات</a> <a class="btn o s" href="#/invites">دعوات</a> <button class="btn o s" onclick="logout()">خروج</button>':'<a class="btn o s" href="#/register">حساب جديد</a> <a class="btn s" href="#/login">دخول</a>';
+ const un=S.user?unreadN():0;
+ $("#authBtn").innerHTML=S.user?'<button class="bell" title="الرسائل" onclick="bellOpen()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>'+(un?'<span class="bdg">'+un+'</span>':'')+'</button> <a class="btn o s" href="#/settings">إعدادات</a> <a class="btn o s" href="#/invites">دعوات</a> <button class="btn o s" onclick="logout()">خروج</button>':'<a class="btn o s" href="#/register">حساب جديد</a> <a class="btn s" href="#/login">دخول</a>';
  $("#adminLink").style.display=isAdmin()?"":"none";
+ $("#adminLink").innerHTML="لوحة الإدارة"+(isAdmin()&&S.pendN>0?'<span class="rdot" title="طلبات مراجعة"></span>':"");
  const r=location.hash.split("/")[1]||"";document.querySelectorAll("[data-r]").forEach(a=>a.classList.toggle("act",a.dataset.r==r));
 }
 async function logout(){await sb.auth.signOut();S.user=null;location.hash="#/";route()}
@@ -384,8 +406,9 @@ async function admin(){
  const {data:rt}=await sb.from("site_ratings").select("stars");
  const pend=S.items.filter(i=>!ok(i)),pub=S.items.filter(ok);
  const {data:fa}=await sb.auth.mfa.listFactors();const hasMfa=!!(fa&&fa.totp&&fa.totp.length);
- app.innerHTML=`<h2>لوحة الإدارة</h2>${hasMfa?'<div class="note">التحقق بخطوتين: شغّال ✓</div>':'<div class="card" style="border-color:#e0b64a"><b>حساب المشرف لسه بكلمة سر بس.</b> فعّل التحقق بخطوتين عشان الحساب يتحمي.<div id="mfaBox"><br><button class="btn s" id="enrollBtn" onclick="enrollMfa()">تفعيل التحقق بخطوتين</button></div></div>'}<h3>طلبات المراجعة (${pend.length})</h3>
+ app.innerHTML=`<h2>لوحة الإدارة</h2>${hasMfa?'<div class="note">التحقق بخطوتين: شغّال ✓</div>':'<div class="card" style="border-color:#e0b64a"><b>حساب المشرف لسه بكلمة سر بس.</b> فعّل التحقق بخطوتين عشان الحساب يتحمي.<div id="mfaBox"><br><button class="btn s" id="enrollBtn" onclick="enrollMfa()">تفعيل التحقق بخطوتين</button></div></div>'}<h3>طلبات المراجعة (${pend.length})${S.pendN>0?'<span class="rdot"></span>':""}</h3>
  ${pend.length?pend.map(i=>`<div class="file"><div class="ic">${ICON[i.type]}</div><div class="m"><b>${esc(i.title)}</b><br><small>${pl(i)} • ${esc(i.subject)} • من ${esc(i.uploader_name)}</small></div>${i.file_path?`<button class="btn o s" onclick="dl('${esc(i.file_path)}')">معاينة الملف</button>`:""}<button class="btn s" onclick="act(${i.id},1)">موافقة</button><button class="btn r s" onclick="del(${i.id},this)">رفض</button></div>`).join(""):'<div class="card">مفيش طلبات.</div>'}
+ <h3>إرسال رسالة إلى المستخدمين</h3><div class="form card" style="max-width:none"><textarea id="annb" rows="3" maxlength="1000" style="width:100%"></textarea><br><button class="btn" onclick="sendAnn()">إرسال رسالة إلى المستخدمين</button></div>
  <h3>الملفات المنشورة (${pub.length})</h3>${pub.map(i=>`<div class="file"><div class="ic">${ICON[i.type]}</div><div class="m"><b>${esc(i.title)}</b><br><small>${pl(i)} • ${esc(i.subject)}</small></div><button class="btn r s" onclick="del(${i.id},this)">حذف</button></div>`).join("")}
  <h3>إدارة الأقسام والمواد</h3><div class="form card" style="max-width:none"><div class="note">أضف كلية أو قسم أو مادة ناقصة. القايمة الأساسية ثابتة، وإضافاتك بتظهر للكل فورًا. الإضافة والحذف للمشرف بس.</div><div id="tx"></div><label>الاسم الجديد</label><input id="txn" maxlength="100"><br><button class="btn" id="txa">إضافة</button></div>
  <div id="txl"></div>
