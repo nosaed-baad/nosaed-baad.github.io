@@ -211,8 +211,8 @@ async function enrollMfa(){
   if(e2)return toast("الرمز غلط: "+(e2.message||""));toast("اتفعّل التحقق بخطوتين");await admin()};
 }
 async function loadItems(){
- if(!sb)return;const {data,error}=await sb.from("items").select("*").order("created_at",{ascending:false});
- if(error){toast("تعذر تحميل الملفات");return}S.items=data||[];
+ if(!sb)return;let data=[],error=null;for(let from=0;;from+=1000){const r=await sb.from("items").select("*").order("created_at",{ascending:false}).order("id").range(from,from+999);if(r.error){error=r.error;break}data=data.concat(r.data||[]);if(!r.data||r.data.length<1000)break}
+ if(error){toast("تعذر تحميل الملفات");return}S.items=data;
 }
 function chrome(){
  $("#who").textContent=S.user?"أهلا "+S.user.name+(isAdmin()?" (مشرف)":""):"";
