@@ -253,10 +253,11 @@ let q="",tf="";
 function files(list,head,nc){
  const f=list.filter(i=>(!tf||i.type==tf)&&(!q||(i.title+i.subject).includes(q)));
  return `${head}<div class="row"><input id="sq" placeholder="ابحث عن ملف..." value="${esc(q)}" oninput="q=this.value;rerender(true)"><div class="chips" style="flex:2${nc?";display:none":""}"><button class="${!tf?"on":""}" onclick="tf='';rerender()">الكل</button>${TYPES.map(t=>`<button class="${tf==t?"on":""}" onclick="tf='${t}';rerender()">${t}</button>`).join("")}</div></div>
- ${f.length?f.map(i=>`<div class="file"><div class="ic">${ICON[i.type]}</div><div class="m"><b>${esc(i.title)}</b><br><small>${i.type} • ${pl(i)} • ${esc(i.subject)} • رفعه ${esc(i.uploader_name)}</small></div>${i.file_path?`<button class="btn o s" onclick="dl('${esc(i.file_path)}')">تحميل</button>`:""}</div>`).join(""):'<div class="card">مفيش ملفات هنا لسه. كن أول واحد يرفع!</div>'}`;
+ ${f.length?f.map(i=>`<div class="file"><div class="ic">${ICON[i.type]}</div><div class="m"><b>${esc(i.title)}</b><br><small>${i.type} • ${pl(i)} • ${esc(i.subject)} • رفعه ${esc(i.uploader_name)}</small>${i.description?`<br><small>${esc(i.description)}</small>`:""}</div>${i.file_path?`<button class="btn o s" onclick="dl('${esc(i.file_path)}')">${/^https:/.test(i.file_path)?"فتح":"تحميل"}</button>`:""}</div>`).join(""):'<div class="card">مفيش ملفات هنا لسه. كن أول واحد يرفع!</div>'}`;
 }
 async function dl(path){
  if(!S.user)return toast("سجّل دخول الأول للتحميل");
+ if(/^https:\/\/(nosaed-files\.pages\.dev|elearnningcontent\.blob\.core\.windows\.net)\//.test(path)){window.open(path,"_blank","noopener");return}
  const {data,error}=await sb.storage.from("files").createSignedUrl(path,60);
  if(error)return toast("تعذر التحميل");window.open(data.signedUrl,"_blank");
 }
@@ -407,7 +408,7 @@ async function admin(){
  const pend=S.items.filter(i=>!ok(i)),pub=S.items.filter(ok);
  const {data:fa}=await sb.auth.mfa.listFactors();const hasMfa=!!(fa&&fa.totp&&fa.totp.length);
  app.innerHTML=`<h2>لوحة الإدارة</h2>${hasMfa?'<div class="note">التحقق بخطوتين: شغّال ✓</div>':'<div class="card" style="border-color:#e0b64a"><b>حساب المشرف لسه بكلمة سر بس.</b> فعّل التحقق بخطوتين عشان الحساب يتحمي.<div id="mfaBox"><br><button class="btn s" id="enrollBtn" onclick="enrollMfa()">تفعيل التحقق بخطوتين</button></div></div>'}<h3>طلبات المراجعة (${pend.length})${S.pendN>0?'<span class="rdot"></span>':""}</h3>
- ${pend.length?pend.map(i=>`<div class="file"><div class="ic">${ICON[i.type]}</div><div class="m"><b>${esc(i.title)}</b><br><small>${pl(i)} • ${esc(i.subject)} • من ${esc(i.uploader_name)}</small></div>${i.file_path?`<button class="btn o s" onclick="dl('${esc(i.file_path)}')">معاينة الملف</button>`:""}<button class="btn s" onclick="act(${i.id},1)">موافقة</button><button class="btn r s" onclick="del(${i.id},this)">رفض</button></div>`).join(""):'<div class="card">مفيش طلبات.</div>'}
+ ${pend.length?pend.map(i=>`<div class="file"><div class="ic">${ICON[i.type]}</div><div class="m"><b>${esc(i.title)}</b><br><small>${pl(i)} • ${esc(i.subject)} • من ${esc(i.uploader_name)}</small>${i.description?`<br><small>${esc(i.description)}</small>`:""}</div>${i.file_path?`<button class="btn o s" onclick="dl('${esc(i.file_path)}')">معاينة الملف</button>`:""}<button class="btn s" onclick="act(${i.id},1)">موافقة</button><button class="btn r s" onclick="del(${i.id},this)">رفض</button></div>`).join(""):'<div class="card">مفيش طلبات.</div>'}
  <h3>إرسال رسالة إلى المستخدمين</h3><div class="form card" style="max-width:none"><textarea id="annb" rows="3" maxlength="1000" style="width:100%"></textarea><br><button class="btn" onclick="sendAnn()">إرسال رسالة إلى المستخدمين</button></div>
  <h3>الملفات المنشورة (${pub.length})</h3>${pub.map(i=>`<div class="file"><div class="ic">${ICON[i.type]}</div><div class="m"><b>${esc(i.title)}</b><br><small>${pl(i)} • ${esc(i.subject)}</small></div><button class="btn r s" onclick="del(${i.id},this)">حذف</button></div>`).join("")}
  <h3>إدارة الأقسام والمواد</h3><div class="form card" style="max-width:none"><div class="note">أضف كلية أو قسم أو مادة ناقصة. القايمة الأساسية ثابتة، وإضافاتك بتظهر للكل فورًا. الإضافة والحذف للمشرف بس.</div><div id="tx"></div><label>الاسم الجديد</label><input id="txn" maxlength="100"><br><button class="btn" id="txa">إضافة</button></div>
@@ -440,7 +441,7 @@ async function delTax(id,b){if(!b.dataset.c){b.dataset.c=1;b.textContent="أكّ
 async function act(id){const {error}=await sb.from("items").update({status:"approved"}).eq("id",id);if(error)return toast("مش مسموح");toast("اتنشر");await loadItems();admin()}
 async function del(id,b){if(!b.dataset.c){b.dataset.c=1;b.textContent="أكّد";return}
  const it=S.items.find(i=>i.id==id);const {error}=await sb.from("items").delete().eq("id",id);if(error)return toast("مش مسموح");
- if(it&&it.file_path)await sb.storage.from("files").remove([it.file_path]);toast("اتحذف");await loadItems();admin()}
+ if(it&&it.file_path&&!/^https:/.test(it.file_path))await sb.storage.from("files").remove([it.file_path]);toast("اتحذف");await loadItems();admin()}
 async function route(keep){
  const p=location.hash.replace(/^#\/?/,"").split("/").filter(x=>x!=="");const r=p[0]||"";
  if(!sb){setup();chrome();return}
