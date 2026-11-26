@@ -164,19 +164,51 @@ const lastSeen=()=>{try{return +localStorage.getItem("nb_ann_seen_"+(S.user&&S.u
 const unreadN=()=>S.anns.filter(a=>a.id>lastSeen()).length;
 async function loadNotices(){
  S.anns=[];S.pendN=0;if(!sb||!S.user){return}
- try{const {data,error}=await sb.from("announcements").select("id,body,created_at").order("id",{ascending:false}).limit(20);if(!error&&data)S.anns=data}catch(e){}
+ try{const {data,error}=await sb.from("announcements").select("id,body,created_at,att_path,att_type,att_name").order("id",{ascending:false}).limit(20);if(!error&&data)S.anns=data}catch(e){}
  if(isAdmin()){try{const {count}=await sb.from("items").select("id",{count:"exact",head:true}).eq("status","pending").not("file_path","is",null);S.pendN=count||0}catch(e){}}
 }
 function bellOpen(){
  if(!S.user)return;const mx=S.anns.reduce((m,a)=>Math.max(m,a.id),0);
- app.innerHTML=`<h2>الرسائل</h2>${S.anns.length?S.anns.map(a=>`<div class="card ann"><div>${esc(a.body).replace(/\n/g,"<br>")}</div><small>${new Date(a.created_at).toLocaleString("ar-EG")}</small></div>`).join(""):'<div class="card">مفيش رسائل.</div>'}`;
- try{localStorage.setItem("nb_ann_seen_"+S.user.id,String(mx))}catch(e){}chrome();
+ app.innerHTML=`<h2>الرسائل</h2>${S.anns.length?S.anns.map(a=>`<div class="card ann"><div>${esc(a.body).replace(/\n/g,"<br>")}</div>${a.att_path&&a.att_type?`<div class="annatt" data-p="${esc(a.att_path)}" data-t="${esc(a.att_type)}" data-n="${esc(a.att_name||"ملف")}" style="margin:8px 0"><small>جاري تحميل المرفق...</small></div>`:""}<small>${new Date(a.created_at).toLocaleString("ar-EG")}</small></div>`).join(""):'<div class="card">مفيش رسائل.</div>'}`;
+ try{localStorage.setItem("nb_ann_seen_"+S.user.id,String(mx))}catch(e){}chrome();loadAnnAtt();
+}
+async function loadAnnAtt(){
+ for(const el of document.querySelectorAll(".annatt")){
+  const p=el.dataset.p,t=el.dataset.t,n=el.dataset.n;
+  const {data,error}=await sb.storage.from("ann-attachments").createSignedUrl(p,3600);
+  if(error||!data){el.innerHTML="<small>تعذر تحميل المرفق</small>";continue}
+  const u=data.signedUrl;
+  if(t=="image"){el.innerHTML="";const a=document.createElement("a");a.href=u;a.target="_blank";a.rel="noopener noreferrer";const im=document.createElement("img");im.src=u;im.alt=n;im.loading="lazy";im.style.cssText="max-width:100%;max-height:360px;border-radius:10px;display:block";a.appendChild(im);el.appendChild(a)}
+  else if(t=="audio"){el.innerHTML="";const au=document.createElement("audio");au.controls=true;au.preload="none";au.src=u;au.style.cssText="width:100%;max-width:420px";el.appendChild(au)}
+  else{el.innerHTML="";const a=document.createElement("a");a.className="btn o s";a.href=u;a.target="_blank";a.rel="noopener noreferrer";a.download=n;a.textContent="تحميل: "+n;el.appendChild(a)}
+ }
+}
+const ANN_MAX=15728640,IMG_OK=/^image\/(png|jpe?g|gif|webp)$/;
+let annRec=null;
+function annKind(f){return IMG_OK.test(f.type)?"image":/^audio\//.test(f.type)?"audio":"file"}
+async function annRecord(){
+ const b=$("#annrec");
+ if(annRec){annRec.mr.stop();return}
+ if(!navigator.mediaDevices||!window.MediaRecorder)return toast("المتصفح مش بيدعم التسجيل، ارفع ملف صوتي بدل كده");
+ try{const st=await navigator.mediaDevices.getUserMedia({audio:true});const ch=[];const mr=new MediaRecorder(st);
+  mr.ondataavailable=e=>{if(e.data.size)ch.push(e.data)};
+  mr.onstop=()=>{st.getTracks().forEach(t=>t.stop());const ty=(mr.mimeType||"audio/webm").split(";")[0];const ext=ty.includes("mp4")?"m4a":ty.includes("ogg")?"ogg":"webm";
+   annRec=null;b.textContent="🎙️ تسجيل صوت";const f=new File(ch,"voice."+ext,{type:ty});
+   if(f.size>ANN_MAX)return toast("التسجيل أكبر من ١٥ ميجا");
+   window.annVoice=f;$("#annst").textContent="تسجيل جاهز: "+Math.round(f.size/1024)+" ك.ب";$("#annf").value=""};
+  mr.start();annRec={mr};b.textContent="⏹️ إيقاف التسجيل"}catch(e){toast("مفيش إذن للميكروفون")}
 }
 async function sendAnn(){
  const b=$("#annb"),t=b.value.trim();if(!t)return toast("اكتب الرسالة الأول");
- if(!confirm("هتتبعت الرسالة دي لكل المستخدمين. تكمل؟"))return;
- const {error}=await sb.from("announcements").insert({body:t});if(error)return toast("مش مسموح أو الجدول مش جاهز");
- b.value="";toast("اتبعتت لكل المستخدمين");await loadNotices();chrome();
+ const f=$("#annf").files[0]||window.annVoice||null;
+ if(f&&f.size>ANN_MAX)return toast("المرفق أكبر من ١٥ ميجا");
+ if(!confirm("هتتبعت الرسالة دي لكل المستخدمين"+(f?" مع المرفق: "+(f.name||"تسجيل"):"")+". تكمل؟"))return;
+ const row={body:t};let fp=null;
+ if(f){const ext=((f.name||"").split(".").pop()||"bin").toLowerCase().replace(/[^a-z0-9]/g,"").slice(0,8)||"bin";fp=S.user.id+"/"+Date.now()+"."+ext;
+  const up=await sb.storage.from("ann-attachments").upload(fp,f,{contentType:f.type||"application/octet-stream"});if(up.error)return toast("فشل رفع المرفق: "+up.error.message);
+  row.att_path=fp;row.att_type=annKind(f);row.att_name=(f.name||"voice").slice(0,120)}
+ const {error}=await sb.from("announcements").insert(row);if(error){if(fp)await sb.storage.from("ann-attachments").remove([fp]);return toast("مش مسموح أو الجدول مش جاهز")}
+ b.value="";$("#annf").value="";window.annVoice=null;$("#annst").textContent="";toast("اتبعتت لكل المستخدمين");await loadNotices();chrome();
 }
 const ok=i=>i.status=="approved";
 async function loadUser(){
@@ -425,7 +457,7 @@ async function admin(){
  const {data:fa}=await sb.auth.mfa.listFactors();const hasMfa=!!(fa&&fa.totp&&fa.totp.length);
  app.innerHTML=`<h2>لوحة الإدارة</h2>${hasMfa?'<div class="note">التحقق بخطوتين: شغّال ✓</div>':'<div class="card" style="border-color:#e0b64a"><b>حساب المشرف لسه بكلمة سر بس.</b> فعّل التحقق بخطوتين عشان الحساب يتحمي.<div id="mfaBox"><br><button class="btn s" id="enrollBtn" onclick="enrollMfa()">تفعيل التحقق بخطوتين</button></div></div>'}<h3>طلبات المراجعة (${pend.length})${S.pendN>0?'<span class="rdot"></span>':""}</h3>
  ${pend.length?pend.map(i=>`<div class="file"><div class="ic">${ICON[i.type]}</div><div class="m"><b>${esc(i.title)}</b><br><small>${pl(i)} • ${esc(i.subject)} • من ${esc(i.uploader_name)}</small>${i.description?`<br><small>${esc(i.description)}</small>`:""}</div>${i.file_path?`<button class="btn o s" onclick="dl('${esc(i.file_path)}')">${isLk(i.file_path)?"فتح الرابط":"معاينة الملف"}</button>`:""}<button class="btn s" onclick="act(${i.id},1)">موافقة</button><button class="btn r s" onclick="del(${i.id},this)">رفض</button></div>`).join(""):'<div class="card">مفيش طلبات.</div>'}
- <h3>إرسال رسالة إلى المستخدمين</h3><div class="form card" style="max-width:none"><textarea id="annb" rows="3" maxlength="1000" style="width:100%"></textarea><br><button class="btn" onclick="sendAnn()">إرسال رسالة إلى المستخدمين</button></div>
+ <h3>إرسال رسالة إلى المستخدمين</h3><div class="form card" style="max-width:none"><textarea id="annb" rows="3" maxlength="1000" style="width:100%"></textarea><br><label>مرفق (اختياري): صورة أو ملف صوتي أو ملف، الحد ١٥ ميجا</label><input type="file" id="annf" accept="image/png,image/jpeg,image/gif,image/webp,audio/*,.pdf,.docx,.pptx,.xlsx,.zip" onchange="window.annVoice=null;$('#annst').textContent=''"><br><button class="btn o s" type="button" id="annrec" onclick="annRecord()">🎙️ تسجيل صوت</button> <small id="annst"></small><br><br><button class="btn" onclick="sendAnn()">إرسال رسالة إلى المستخدمين</button></div>
  <h3>الملفات المنشورة (${pub.length})</h3>${pub.map(i=>`<div class="file"><div class="ic">${ICON[i.type]}</div><div class="m"><b>${esc(i.title)}</b><br><small>${pl(i)} • ${esc(i.subject)}</small></div><button class="btn r s" onclick="del(${i.id},this)">حذف</button></div>`).join("")}
  <h3>إدارة الأقسام والمواد</h3><div class="form card" style="max-width:none"><div class="note">أضف كلية أو قسم أو مادة ناقصة. القايمة الأساسية ثابتة، وإضافاتك بتظهر للكل فورًا. الإضافة والحذف للمشرف بس.</div><div id="tx"></div><label>الاسم الجديد</label><input id="txn" maxlength="100"><br><button class="btn" id="txa">إضافة</button></div>
  <div id="txl"></div>
