@@ -254,9 +254,13 @@ function files(list,head,nc){
  const f=list.filter(i=>(!tf||i.type==tf)&&(!q||(i.title+i.subject).includes(q)));
  const wk=i=>{const m=(i.description||"").match(/الأسبوع (\d+)/);return m?+m[1]:0};if(f.some(wk))f.sort((a,b)=>wk(a)-wk(b));
  return `${head}<div class="row"><input id="sq" placeholder="ابحث عن ملف..." value="${esc(q)}" oninput="q=this.value;rerender(true)"><div class="chips" style="flex:2${nc?";display:none":""}"><button class="${!tf?"on":""}" onclick="tf='';rerender()">الكل</button>${TYPES.filter(t=>t!="امتحان استرشادي"||list.some(i=>i.type==t)).map(t=>`<button class="${tf==t?"on":""}" onclick="tf='${t}';rerender()">${t}</button>`).join("")}</div></div>
- ${f.length?f.map(i=>`<div class="file"><div class="ic">${ICON[i.type]}</div><div class="m"><b>${esc(i.title)}</b><br><small>${i.type} • ${pl(i)} • ${esc(i.subject)} • رفعه ${esc(i.uploader_name)}</small>${i.description?`<br><small>${esc(i.description)}</small>`:""}</div>${i.file_path?`<button class="btn o s" onclick="dl('${esc(i.file_path)}')">${/^https:/.test(i.file_path)?"فتح":"تحميل"}</button>`:""}</div>`).join(""):'<div class="card">مفيش ملفات هنا لسه. كن أول واحد يرفع!</div>'}`;
+ ${f.length?f.map(i=>`<div class="file"><div class="ic">${ICON[i.type]}</div><div class="m"><b>${esc(i.title)}</b><br><small>${isLk(i.file_path)?"🔗 رابط • ":""}${i.type} • ${pl(i)} • ${esc(i.subject)} • رفعه ${esc(i.uploader_name)}</small>${isLk(i.file_path)&&lkHost(i.file_path)?`<br><small dir="ltr" style="display:block;text-align:right">${esc(lkHost(i.file_path))}</small>`:""}${i.description?`<br><small>${esc(i.description)}</small>`:""}</div>${i.file_path?`<button class="btn o s" onclick="dl('${esc(i.file_path)}')">${isLk(i.file_path)||/^https:/.test(i.file_path)?"فتح":"تحميل"}</button>`:""}</div>`).join(""):'<div class="card">مفيش ملفات هنا لسه. كن أول واحد يرفع!</div>'}`;
 }
+const isLk=p=>typeof p=="string"&&p.startsWith("link:");
+const lkUrl=p=>{try{const u=new URL(p.slice(5).trim());return /^https?:$/.test(u.protocol)?u.href:null}catch(e){return null}};
+const lkHost=p=>{const u=lkUrl(p);return u?new URL(u).hostname.replace(/^www\./,""):""};
 async function dl(path){
+ if(isLk(path)){const u=lkUrl(path);if(!u)return toast("الرابط مش صالح");window.open(u,"_blank","noopener,noreferrer");return}
  if(!S.user)return toast("سجّل دخول الأول للتحميل");
  if(/^https:\/\/(nosaed-files\.pages\.dev|elearnningcontent\.blob\.core\.windows\.net)\//.test(path)){window.open(path,"_blank","noopener");return}
  const {data,error}=await sb.storage.from("files").createSignedUrl(path,60);
@@ -265,9 +269,11 @@ async function dl(path){
 function rerender(keep){route(keep)}
 function upload(){
  if(!S.user){app.innerHTML=`<div class="form card"><h2>لازم تسجل دخول الأول</h2><p>الرفع للأعضاء بس، وكل ملف بيتراجع قبل ما يظهر للناس.</p><a class="btn" href="#/login">دخول</a></div>`;return}
- app.innerHTML=`<div class="form card"><h2>ارفع ملف</h2><div class="note">الملف بيروح لقايمة مراجعة المشرف، ومش بيظهر للناس إلا بعد الموافقة. الحد الأقصى ١٠ ميجا، PDF أو صورة أو Word أو PowerPoint.</div>
+ app.innerHTML=`<div class="form card"><h2>ارفع ملف</h2><div class="note">الملف بيروح لقايمة مراجعة المشرف، ومش بيظهر للناس إلا بعد الموافقة. الحد الأقصى ١٠ ميجا، PDF أو صورة أو Word أو PowerPoint. أو ابعت رابط عادي (درايف، يوتيوب، أي موقع).</div>
  <label>العنوان</label><input id="t" maxlength="200"><div id="lv"></div><label>القسم داخل المادة</label><select id="ty">${TYPES.map(s=>`<option>${s}</option>`)}</select>
- <label>الملف</label><input type="file" id="fl" accept=".pdf,.png,.jpg,.jpeg,.docx,.pptx"><br><button class="btn" id="go">إرسال للمراجعة</button></div>`;
+ <label>نوع الرفع</label><select id="md"><option value="f">ملف</option><option value="l">رابط</option></select>
+ <div id="fw"><label>الملف</label><input type="file" id="fl" accept=".pdf,.png,.jpg,.jpeg,.docx,.pptx"></div>
+ <div id="lw" style="display:none"><label>الرابط</label><input id="lk" type="url" dir="ltr" inputmode="url" placeholder="https://..." maxlength="2000"></div><br><button class="btn" id="go">إرسال للمراجعة</button></div>`;
  let sel=[];const draw=()=>{let node=TREE,h="",i=0;
   const lbl=["المرحلة أو الكلية","الصف / الفرقة","الشعبة"];
   while(true){const keys=isArr(node)?node:Object.keys(node);if(sel[i]===undefined||!keys.includes(sel[i]))sel[i]=keys[0];
@@ -275,7 +281,16 @@ function upload(){
    if(isArr(node))break;node=node[sel[i]];i++}
   sel.length=i+1;$("#lv").innerHTML=h;document.querySelectorAll("#lv select").forEach(e=>e.onchange=()=>{sel.length=+e.dataset.i+1;sel[+e.dataset.i]=e.value;draw()})};
  draw();
- $("#go").onclick=async()=>{const t=$("#t").value.trim(),f=$("#fl").files[0];if(!t)return toast("اكتب عنوان الأول");if(!f)return toast("اختار ملف الأول");if(f.size>10485760)return toast("الملف أكبر من ١٠ ميجا");
+ $("#md").onchange=()=>{const l=$("#md").value=="l";$("#fw").style.display=l?"none":"";$("#lw").style.display=l?"":"none"};
+ $("#go").onclick=async()=>{const t=$("#t").value.trim(),isL=$("#md").value=="l";
+  if(isL){if(!t)return toast("اكتب عنوان الأول");let raw=$("#lk").value.trim(),u=null;try{const x=new URL(raw);if(/^https?:$/.test(x.protocol)&&x.hostname.includes("."))u=x.href}catch(e){}
+   if(!u)return toast("اكتب رابط صحيح يبدأ بـ http أو https");if(u.length>2000)return toast("الرابط طويل أوي");
+   const b=$("#go");b.disabled=true;
+   if(S.user.role!="admin"){const pc=await sb.from("items").select("id",{count:"exact",head:true}).eq("uploader_id",S.user.id).eq("status","pending");if(pc.error){b.disabled=false;return toast("تعذر التحقق دلوقتي، جرّب تاني بعد شوية")}if(pc.count>=5){b.disabled=false;return toast("عندك ٥ ملفات لسه تحت المراجعة. استنى لما المشرف يراجعها وبعدين ارفع غيرها")}}
+   const ins=await sb.from("items").insert({title:t,type:$("#ty").value,path:sel.slice(0,-1),subject:sel[sel.length-1],file_path:"link:"+u,uploader_id:S.user.id,uploader_name:S.user.name});
+   b.disabled=false;if(ins.error)return toast(/too many pending/i.test(ins.error.message||"")?"عندك ٥ ملفات لسه تحت المراجعة. استنى لما المشرف يراجعها وبعدين ارفع غيرها":"فشل الإرسال: "+ins.error.message);
+   toast("اتبعت للمراجعة");$("#t").value="";$("#lk").value="";await loadItems();return}
+  const f=$("#fl").files[0];if(!t)return toast("اكتب عنوان الأول");if(!f)return toast("اختار ملف الأول");if(f.size>10485760)return toast("الملف أكبر من ١٠ ميجا");
   const b=$("#go");b.disabled=true;
   const ext=(f.name.split(".").pop()||"bin").toLowerCase().replace(/[^a-z0-9]/g,"");const fp=S.user.id+"/"+Date.now()+"."+ext;
   if(S.user.role!="admin"){const pc=await sb.from("items").select("id",{count:"exact",head:true}).eq("uploader_id",S.user.id).eq("status","pending");if(pc.error){b.disabled=false;return toast("تعذر التحقق دلوقتي، جرّب تاني بعد شوية")}if(pc.count>=5){b.disabled=false;return toast("عندك ٥ ملفات لسه تحت المراجعة. استنى لما المشرف يراجعها وبعدين ارفع غيرها")}}
@@ -409,7 +424,7 @@ async function admin(){
  const pend=S.items.filter(i=>!ok(i)),pub=S.items.filter(ok);
  const {data:fa}=await sb.auth.mfa.listFactors();const hasMfa=!!(fa&&fa.totp&&fa.totp.length);
  app.innerHTML=`<h2>لوحة الإدارة</h2>${hasMfa?'<div class="note">التحقق بخطوتين: شغّال ✓</div>':'<div class="card" style="border-color:#e0b64a"><b>حساب المشرف لسه بكلمة سر بس.</b> فعّل التحقق بخطوتين عشان الحساب يتحمي.<div id="mfaBox"><br><button class="btn s" id="enrollBtn" onclick="enrollMfa()">تفعيل التحقق بخطوتين</button></div></div>'}<h3>طلبات المراجعة (${pend.length})${S.pendN>0?'<span class="rdot"></span>':""}</h3>
- ${pend.length?pend.map(i=>`<div class="file"><div class="ic">${ICON[i.type]}</div><div class="m"><b>${esc(i.title)}</b><br><small>${pl(i)} • ${esc(i.subject)} • من ${esc(i.uploader_name)}</small>${i.description?`<br><small>${esc(i.description)}</small>`:""}</div>${i.file_path?`<button class="btn o s" onclick="dl('${esc(i.file_path)}')">معاينة الملف</button>`:""}<button class="btn s" onclick="act(${i.id},1)">موافقة</button><button class="btn r s" onclick="del(${i.id},this)">رفض</button></div>`).join(""):'<div class="card">مفيش طلبات.</div>'}
+ ${pend.length?pend.map(i=>`<div class="file"><div class="ic">${ICON[i.type]}</div><div class="m"><b>${esc(i.title)}</b><br><small>${pl(i)} • ${esc(i.subject)} • من ${esc(i.uploader_name)}</small>${i.description?`<br><small>${esc(i.description)}</small>`:""}</div>${i.file_path?`<button class="btn o s" onclick="dl('${esc(i.file_path)}')">${isLk(i.file_path)?"فتح الرابط":"معاينة الملف"}</button>`:""}<button class="btn s" onclick="act(${i.id},1)">موافقة</button><button class="btn r s" onclick="del(${i.id},this)">رفض</button></div>`).join(""):'<div class="card">مفيش طلبات.</div>'}
  <h3>إرسال رسالة إلى المستخدمين</h3><div class="form card" style="max-width:none"><textarea id="annb" rows="3" maxlength="1000" style="width:100%"></textarea><br><button class="btn" onclick="sendAnn()">إرسال رسالة إلى المستخدمين</button></div>
  <h3>الملفات المنشورة (${pub.length})</h3>${pub.map(i=>`<div class="file"><div class="ic">${ICON[i.type]}</div><div class="m"><b>${esc(i.title)}</b><br><small>${pl(i)} • ${esc(i.subject)}</small></div><button class="btn r s" onclick="del(${i.id},this)">حذف</button></div>`).join("")}
  <h3>إدارة الأقسام والمواد</h3><div class="form card" style="max-width:none"><div class="note">أضف كلية أو قسم أو مادة ناقصة. القايمة الأساسية ثابتة، وإضافاتك بتظهر للكل فورًا. الإضافة والحذف للمشرف بس.</div><div id="tx"></div><label>الاسم الجديد</label><input id="txn" maxlength="100"><br><button class="btn" id="txa">إضافة</button></div>
@@ -442,7 +457,7 @@ async function delTax(id,b){if(!b.dataset.c){b.dataset.c=1;b.textContent="أكّ
 async function act(id){const {error}=await sb.from("items").update({status:"approved"}).eq("id",id);if(error)return toast("مش مسموح");toast("اتنشر");await loadItems();admin()}
 async function del(id,b){if(!b.dataset.c){b.dataset.c=1;b.textContent="أكّد";return}
  const it=S.items.find(i=>i.id==id);const {error}=await sb.from("items").delete().eq("id",id);if(error)return toast("مش مسموح");
- if(it&&it.file_path&&!/^https:/.test(it.file_path))await sb.storage.from("files").remove([it.file_path]);toast("اتحذف");await loadItems();admin()}
+ if(it&&it.file_path&&!isLk(it.file_path)&&!/^https:/.test(it.file_path))await sb.storage.from("files").remove([it.file_path]);toast("اتحذف");await loadItems();admin()}
 async function route(keep){
  const p=location.hash.replace(/^#\/?/,"").split("/").filter(x=>x!=="");const r=p[0]||"";
  if(!sb){setup();chrome();return}
