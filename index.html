@@ -150,7 +150,7 @@ function buildTree(){
 }
 const SRC_NOTE="تصنيفات مقترحة وقابلة للتعديل، مش منهج رسمي كامل. المصادر مختلفة في السنة: الصف الأول الثانوي ٢٠٢٥/٢٦ (قرار الوزارة ٢٣٤/٢٠٢٥)، وتاني بكالوريا وتالت ثانوي عام من أخبار ٢٠٢٦/٢٧، وتاني ثانوي عام من خبر صحفي واحد غير مؤكد. كلها نقل صحفي مش نص القرار. الابتدائي ٢٠٢٥/٢٦ وأولى إعدادي ٢٠٢٤/٢٥، وتاني وتالت إعدادي افتراض غير متحقق منه. (خارج المجموع) يعني مادة نجاح ورسوب. أحياء وجيولوجيا وتفاضل وتكامل وميكانيكا تنظيم للمصادر مش بالضرورة مواد رسمية. مواد الكليات أمثلة بتختلف من جامعة لجامعة. لو ناقص حاجة، ابعت من صفحة الدعم.";
 const UNV="تنبيه: قايمة الإعدادي للصف ده افتراض غير متحقق منه، المتحقق منه (٢٠٢٤/٢٥) للصف الأول الإعدادي بس.";
-const TYPES=["ملخص","شرح","كتاب","تقييم"],ICON={"ملخص":"📝","شرح":"🎥","كتاب":"📘","تقييم":"📋"},PL={"ملخص":"ملخصات","شرح":"شروحات","كتاب":"كتب","تقييم":"تقييمات"};
+const TYPES=["ملخص","شرح","كتاب","تقييم","امتحان استرشادي"],ICON={"ملخص":"📝","شرح":"🎥","كتاب":"📘","تقييم":"📋","امتحان استرشادي":"🎯"},PL={"ملخص":"ملخصات","شرح":"شروحات","كتاب":"كتب","تقييم":"تقييمات","امتحان استرشادي":"امتحانات استرشادية"};
 
 const $=s=>document.querySelector(s),app=$("#app");
 const toast=t=>{const e=$("#toast");e.textContent=t;e.style.display="block";clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display="none",3200)};
@@ -252,6 +252,7 @@ function library(p){
 let q="",tf="";
 function files(list,head,nc){
  const f=list.filter(i=>(!tf||i.type==tf)&&(!q||(i.title+i.subject).includes(q)));
+ const wk=i=>{const m=(i.description||"").match(/الأسبوع (\d+)/);return m?+m[1]:0};if(f.some(wk))f.sort((a,b)=>wk(a)-wk(b));
  return `${head}<div class="row"><input id="sq" placeholder="ابحث عن ملف..." value="${esc(q)}" oninput="q=this.value;rerender(true)"><div class="chips" style="flex:2${nc?";display:none":""}"><button class="${!tf?"on":""}" onclick="tf='';rerender()">الكل</button>${TYPES.map(t=>`<button class="${tf==t?"on":""}" onclick="tf='${t}';rerender()">${t}</button>`).join("")}</div></div>
  ${f.length?f.map(i=>`<div class="file"><div class="ic">${ICON[i.type]}</div><div class="m"><b>${esc(i.title)}</b><br><small>${i.type} • ${pl(i)} • ${esc(i.subject)} • رفعه ${esc(i.uploader_name)}</small>${i.description?`<br><small>${esc(i.description)}</small>`:""}</div>${i.file_path?`<button class="btn o s" onclick="dl('${esc(i.file_path)}')">${/^https:/.test(i.file_path)?"فتح":"تحميل"}</button>`:""}</div>`).join(""):'<div class="card">مفيش ملفات هنا لسه. كن أول واحد يرفع!</div>'}`;
 }
